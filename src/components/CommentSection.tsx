@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Send, Trash2, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MessageSquare, Send, Trash2, Clock, Image, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { uploadImage } from "@/utils/imageUpload";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +21,7 @@ import {
 interface Comment {
   id: string;
   content: string;
+  image_url?: string;
   created_at: string;
   user_id: string;
   profiles: {
@@ -34,6 +37,8 @@ interface CommentSectionProps {
 export const CommentSection = ({ postId, currentUser }: CommentSectionProps) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const { toast } = useToast();
@@ -94,6 +99,45 @@ export const CommentSection = ({ postId, currentUser }: CommentSectionProps) => 
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Error",
+          description: "Please select an image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image must be smaller than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearImage = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -106,22 +150,41 @@ export const CommentSection = ({ postId, currentUser }: CommentSectionProps) => 
       return;
     }
 
-    if (!newComment.trim()) return;
+    if (!newComment.trim() && !selectedFile) {
+      toast({
+        title: "Error",
+        description: "Please enter a comment or select an image",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
+      let imageUrl = null;
+
+      // Upload image if selected
+      if (selectedFile) {
+        imageUrl = await uploadImage(selectedFile, currentUser.id);
+        if (!imageUrl) {
+          throw new Error('Failed to upload image');
+        }
+      }
+
       const { error } = await supabase
         .from("comments")
         .insert({
           post_id: postId,
           user_id: currentUser.id,
           content: newComment.trim(),
+          image_url: imageUrl,
         });
 
       if (error) throw error;
 
       setNewComment("");
+      clearImage();
       await fetchComments();
       
       toast({
@@ -199,6 +262,39 @@ export const CommentSection = ({ postId, currentUser }: CommentSectionProps) => 
                 maxLength={1000}
                 className="min-h-[80px] resize-none"
               />
+              
+              {/* Image upload for comments */}
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="w-auto text-sm file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
+                  />
+                  {(selectedFile || previewUrl) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearImage}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {previewUrl && (
+                <div className="mt-2">
+                  <img 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    className="max-w-full h-20 object-cover rounded border"
+                  />
+                </div>
+              )}
+
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">
                   {newComment.length}/1000 characters
@@ -206,7 +302,7 @@ export const CommentSection = ({ postId, currentUser }: CommentSectionProps) => 
                 <Button 
                   type="submit" 
                   size="sm"
-                  disabled={isSubmitting || !newComment.trim()}
+                  disabled={isSubmitting || (!newComment.trim() && !selectedFile)}
                   className="flex items-center space-x-2"
                 >
                   <Send className="h-3 w-3" />
@@ -263,7 +359,25 @@ export const CommentSection = ({ postId, currentUser }: CommentSectionProps) => 
                           </AlertDialog>
                         )}
                       </div>
-                      <p className="text-sm mt-1 whitespace-pre-wrap">{comment.content}</p>
+                      
+                      {comment.content && (
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{comment.content}</p>
+                      )}
+                      
+                      {comment.image_url && (
+                        <div className="mt-2">
+                          <img 
+                            src={comment.image_url} 
+                            alt="Comment attachment" 
+                            className="max-w-full rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(comment.image_url, '_blank')}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
