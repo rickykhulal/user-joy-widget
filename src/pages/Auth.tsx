@@ -76,6 +76,28 @@ export const Auth = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -83,7 +105,7 @@ export const Auth = () => {
           <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground mx-auto mb-4">
             <Shield className="h-8 w-8" />
           </div>
-          <h1 className="text-2xl font-bold">TruthVote</h1>
+          <h1 className="text-2xl font-bold">TruthLens</h1>
           <p className="text-muted-foreground">Community-powered fact checking</p>
         </div>
 
@@ -125,6 +147,27 @@ export const Auth = () => {
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
+                  </Button>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={handleGoogleSignIn}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing in..." : "Sign in with Google"}
                   </Button>
                 </form>
               </CardContent>

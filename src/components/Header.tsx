@@ -38,7 +38,7 @@ export const Header = ({ user, profile }: HeaderProps) => {
               <Shield className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">TruthVote</h1>
+              <h1 className="text-xl font-bold text-foreground">TruthLens</h1>
               <p className="text-sm text-muted-foreground">Community-powered fact checking</p>
             </div>
           </div>
@@ -50,9 +50,17 @@ export const Header = ({ user, profile }: HeaderProps) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2">
-                    <div className="username-avatar">
-                      {profile?.username ? profile.username.charAt(0).toUpperCase() : 'U'}
-                    </div>
+                    {profile?.avatar_url ? (
+                      <img 
+                        src={profile.avatar_url} 
+                        alt="Profile" 
+                        className="h-10 w-10 rounded-full object-cover" 
+                      />
+                    ) : (
+                      <div className="username-avatar">
+                        {profile?.username ? profile.username.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
                     <span className="hidden sm:inline-block">
                       {profile?.username || 'User'}
                     </span>

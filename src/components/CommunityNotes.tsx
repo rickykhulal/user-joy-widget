@@ -111,6 +111,15 @@ export const CommunityNotes = ({ postId, currentUser, onNotesChange }: Community
       return;
     }
 
+    if (!sourceUrl.trim()) {
+      toast({
+        title: "Source required",
+        description: "Please provide a source URL for your note",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (noteContent.length > 200) {
       toast({
         title: "Content too long",
@@ -256,9 +265,10 @@ export const CommunityNotes = ({ postId, currentUser, onNotesChange }: Community
             </div>
             <Input
               type="url"
-              placeholder="Source link (optional but recommended)"
+              placeholder="Source link (required)"
               value={sourceUrl}
               onChange={(e) => setSourceUrl(e.target.value)}
+              required
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowAddNote(false)}>
