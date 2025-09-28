@@ -3,6 +3,9 @@ import { Check, X, Clock, Trash2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CommentSection } from "./CommentSection";
+import { CommunityNotes } from "./CommunityNotes";
+import { CommunityVerdict } from "./CommunityVerdict";
+import { CredibilityBadge } from "./CredibilityBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +28,8 @@ interface PostCardProps {
     user_id: string;
     profiles: {
       username: string;
+      credibility_score?: number;
+      credibility_badge?: string;
     };
   };
   currentUser: any;
@@ -35,6 +40,8 @@ export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) =>
   const [votes, setVotes] = useState<any[]>([]);
   const [userVote, setUserVote] = useState(null);
   const [isVoting, setIsVoting] = useState(false);
+  const [notesCount, setNotesCount] = useState(0);
+  const [communityVerdict, setCommunityVerdict] = useState<'likely_real' | 'likely_fake' | 'mixed' | 'no_verdict'>('no_verdict');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -177,6 +184,10 @@ export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) =>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="font-semibold">{post.profiles.username}</span>
+              <CredibilityBadge 
+                badge={post.profiles.credibility_badge || 'regular_user'}
+                score={post.profiles.credibility_score || 100}
+              />
               {/* Vote indicators */}
               {totalVotes > 0 && (
                 <>
@@ -322,6 +333,30 @@ export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) =>
           </span>
         )}
       </div>
+
+      {/* Community Verdict */}
+      <CommunityVerdict
+        postId={post.id}
+        notesCount={notesCount}
+        verdict={communityVerdict}
+      />
+
+      {/* Community Notes Section */}
+      <CommunityNotes
+        postId={post.id}
+        currentUser={currentUser}
+        onNotesChange={(count) => {
+          setNotesCount(count);
+          // Simple verdict calculation based on notes count
+          if (count === 0) {
+            setCommunityVerdict('no_verdict');
+          } else if (count >= 3) {
+            setCommunityVerdict('mixed'); // Will be enhanced with AI analysis
+          } else {
+            setCommunityVerdict('mixed');
+          }
+        }}
+      />
 
       {/* Comments section */}
       <CommentSection postId={post.id} currentUser={currentUser} />
