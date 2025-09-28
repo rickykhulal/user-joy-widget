@@ -43,20 +43,26 @@ export const CommunityNotes = ({ postId, currentUser, onNotesChange }: Community
 
   const fetchNotes = async () => {
     try {
+      // First, fetch notes
       const { data: notesData, error } = await supabase
         .from("notes")
-        .select(`
-          *,
-          profiles (username, credibility_score, credibility_badge)
-        `)
+        .select("*")
         .eq("post_id", postId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Get vote scores for each note
-      const notesWithScores = await Promise.all(
+      // Get vote scores and profiles for each note
+      const notesWithScoresAndProfiles = await Promise.all(
         (notesData || []).map(async (note) => {
+          // Fetch profile
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username, credibility_score, credibility_badge")
+            .eq("user_id", note.user_id)
+            .single();
+
+          // Fetch votes
           const { data: votes } = await supabase
             .from("note_votes")
             .select("vote_type, user_id")
@@ -66,10 +72,11 @@ export const CommunityNotes = ({ postId, currentUser, onNotesChange }: Community
           const downVotes = votes?.filter(v => v.vote_type === 'down').length || 0;
           const vote_score = upVotes - downVotes;
           
-          const user_vote = votes?.find(v => v.user_id === currentUser?.id)?.vote_type || null;
+          const user_vote = votes?.find(v => v.user_id === currentUser?.id)?.vote_type as "up" | "down" | null || null;
 
           return {
             ...note,
+            profiles: profile || { username: "Unknown", credibility_score: 100, credibility_badge: "regular_user" },
             vote_score,
             user_vote
           };
@@ -77,9 +84,9 @@ export const CommunityNotes = ({ postId, currentUser, onNotesChange }: Community
       );
 
       // Sort by vote score (highest first)
-      notesWithScores.sort((a, b) => b.vote_score - a.vote_score);
-      setNotes(notesWithScores);
-      onNotesChange?.(notesWithScores.length);
+      notesWithScoresAndProfiles.sort((a, b) => b.vote_score - a.vote_score);
+      setNotes(notesWithScoresAndProfiles);
+      onNotesChange?.(notesWithScoresAndProfiles.length);
     } catch (error) {
       console.error("Error fetching notes:", error);
     }
