@@ -1,0 +1,193 @@
+import { useState, useEffect } from "react";
+import { Check, X, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface PostCardProps {
+  post: {
+    id: string;
+    content: string;
+    image_url?: string;
+    created_at: string;
+    profiles: {
+      username: string;
+    };
+  };
+  currentUser: any;
+}
+
+export const PostCard = ({ post, currentUser }: PostCardProps) => {
+  const [votes, setVotes] = useState<any[]>([]);
+  const [userVote, setUserVote] = useState(null);
+  const [isVoting, setIsVoting] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchVotes();
+  }, [post.id]);
+
+  const fetchVotes = async () => {
+    try {
+      const { data: votesData, error } = await supabase
+        .from("votes")
+        .select("*")
+        .eq("post_id", post.id);
+
+      if (error) throw error;
+
+      setVotes(votesData || []);
+      
+      // Find current user's vote
+      const currentUserVote = votesData?.find(vote => vote.user_id === currentUser?.id);
+      setUserVote(currentUserVote?.vote_type || null);
+    } catch (error) {
+      console.error("Error fetching votes:", error);
+    }
+  };
+
+  const handleVote = async (voteType: 'true' | 'false') => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to vote",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVoting(true);
+
+    try {
+      // Check if user already voted
+      const existingVote = votes.find(vote => vote.user_id === currentUser.id);
+      
+      if (existingVote) {
+        if (existingVote.vote_type === voteType) {
+          // Remove vote if clicking the same option
+          const { error } = await supabase
+            .from("votes")
+            .delete()
+            .eq("id", existingVote.id);
+          
+          if (error) throw error;
+          setUserVote(null);
+        } else {
+          // Update vote if clicking different option
+          const { error } = await supabase
+            .from("votes")
+            .update({ vote_type: voteType })
+            .eq("id", existingVote.id);
+          
+          if (error) throw error;
+          setUserVote(voteType);
+        }
+      } else {
+        // Create new vote
+        const { error } = await supabase
+          .from("votes")
+          .insert({
+            post_id: post.id,
+            user_id: currentUser.id,
+            vote_type: voteType,
+          });
+        
+        if (error) throw error;
+        setUserVote(voteType);
+      }
+
+      // Refresh votes
+      await fetchVotes();
+    } catch (error) {
+      console.error("Error voting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit vote",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
+  const trueVotes = votes.filter(vote => vote.vote_type === 'true').length;
+  const falseVotes = votes.filter(vote => vote.vote_type === 'false').length;
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "now";
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  return (
+    <div className="post-card">
+      <div className="flex items-start space-x-3 mb-3">
+        <div className="username-avatar">
+          {post.profiles.username.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center space-x-2">
+            <span className="font-semibold">{post.profiles.username}</span>
+            <span className="flex items-center text-sm text-muted-foreground">
+              <Clock className="h-3 w-3 mr-1" />
+              {formatTimeAgo(post.created_at)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-foreground whitespace-pre-wrap">{post.content}</p>
+        {post.image_url && (
+          <div className="mt-3">
+            <img 
+              src={post.image_url} 
+              alt="Post attachment" 
+              className="max-w-full rounded-lg border"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handleVote('true')}
+            disabled={isVoting}
+            className={`vote-button-true ${
+              userVote === 'true' ? 'ring-2 ring-accent ring-offset-2' : ''
+            }`}
+          >
+            <Check className="h-4 w-4 mr-1" />
+            True ({trueVotes})
+          </button>
+          
+          <button
+            onClick={() => handleVote('false')}
+            disabled={isVoting}
+            className={`vote-button-false ${
+              userVote === 'false' ? 'ring-2 ring-destructive ring-offset-2' : ''
+            }`}
+          >
+            <X className="h-4 w-4 mr-1" />
+            Fake ({falseVotes})
+          </button>
+        </div>
+
+        {userVote && (
+          <span className="text-sm text-muted-foreground">
+            You voted: {userVote === 'true' ? 'True' : 'Fake'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
