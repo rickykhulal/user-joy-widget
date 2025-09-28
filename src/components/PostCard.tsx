@@ -1,7 +1,20 @@
 import { useState, useEffect } from "react";
-import { Check, X, Clock } from "lucide-react";
+import { Check, X, Clock, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CommentSection } from "./CommentSection";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 interface PostCardProps {
   post: {
@@ -9,14 +22,16 @@ interface PostCardProps {
     content: string;
     image_url?: string;
     created_at: string;
+    user_id: string;
     profiles: {
       username: string;
     };
   };
   currentUser: any;
+  onPostDeleted: () => void;
 }
 
-export const PostCard = ({ post, currentUser }: PostCardProps) => {
+export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) => {
   const [votes, setVotes] = useState<any[]>([]);
   const [userVote, setUserVote] = useState(null);
   const [isVoting, setIsVoting] = useState(false);
@@ -109,8 +124,37 @@ export const PostCard = ({ post, currentUser }: PostCardProps) => {
     }
   };
 
+  const handleDeletePost = async () => {
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", post.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Post deleted successfully!",
+      });
+
+      onPostDeleted();
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete post",
+        variant: "destructive",
+      });
+    }
+  };
+
   const trueVotes = votes.filter(vote => vote.vote_type === 'true').length;
   const falseVotes = votes.filter(vote => vote.vote_type === 'false').length;
+  const totalVotes = trueVotes + falseVotes;
+  
+  const truePercentage = totalVotes > 0 ? Math.round((trueVotes / totalVotes) * 100) : 0;
+  const falsePercentage = totalVotes > 0 ? Math.round((falseVotes / totalVotes) * 100) : 0;
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -130,12 +174,42 @@ export const PostCard = ({ post, currentUser }: PostCardProps) => {
           {post.profiles.username.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold">{post.profiles.username}</span>
-            <span className="flex items-center text-sm text-muted-foreground">
-              <Clock className="h-3 w-3 mr-1" />
-              {formatTimeAgo(post.created_at)}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold">{post.profiles.username}</span>
+              <span className="flex items-center text-sm text-muted-foreground">
+                <Clock className="h-3 w-3 mr-1" />
+                {formatTimeAgo(post.created_at)}
+              </span>
+            </div>
+            
+            {/* Delete button for post owner */}
+            {currentUser?.id === post.user_id && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-destructive/10">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Post</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this post? This action cannot be undone and will also delete all comments and votes.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeletePost}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete Post
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </div>
@@ -157,7 +231,32 @@ export const PostCard = ({ post, currentUser }: PostCardProps) => {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
+      {/* Vote percentages bar */}
+      {totalVotes > 0 && (
+        <div className="mb-4">
+          <div className="flex justify-between text-sm text-muted-foreground mb-2">
+            <span>True: {truePercentage}%</span>
+            <span>Fake: {falsePercentage}%</span>
+          </div>
+          <div className="percentage-bar">
+            <div className="flex h-full">
+              <div 
+                className="percentage-fill-true" 
+                style={{ width: `${truePercentage}%` }}
+              />
+              <div 
+                className="percentage-fill-false" 
+                style={{ width: `${falsePercentage}%` }}
+              />
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {totalVotes} total vote{totalVotes !== 1 ? 's' : ''}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <button
             onClick={() => handleVote('true')}
@@ -188,6 +287,9 @@ export const PostCard = ({ post, currentUser }: PostCardProps) => {
           </span>
         )}
       </div>
+
+      {/* Comments section */}
+      <CommentSection postId={post.id} currentUser={currentUser} />
     </div>
   );
 };

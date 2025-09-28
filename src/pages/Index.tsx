@@ -152,6 +152,7 @@ const Index = () => {
                 key={post.id}
                 post={post}
                 currentUser={user}
+                onPostDeleted={fetchPosts}
               />
             ))
           )}

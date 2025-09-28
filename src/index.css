@@ -110,13 +110,29 @@ All colors MUST be HSL.
 }
 
 .vote-button-true {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors bg-accent hover:bg-accent/90 text-accent-foreground;
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 bg-accent hover:bg-accent/90 text-accent-foreground hover:scale-105;
 }
 
 .vote-button-false {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors bg-destructive hover:bg-destructive/90 text-destructive-foreground;
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 bg-destructive hover:bg-destructive/90 text-destructive-foreground hover:scale-105;
 }
 
 .post-card {
-  @apply rounded-lg border bg-card text-card-foreground shadow-sm p-4 mb-4;
+  @apply rounded-lg border bg-card text-card-foreground shadow-sm p-4 mb-4 transition-all duration-200 hover:shadow-md;
+}
+
+.comment-card {
+  @apply rounded-md border bg-muted/50 p-3 mt-2 transition-all duration-200;
+}
+
+.percentage-bar {
+  @apply h-2 rounded-full overflow-hidden bg-muted;
+}
+
+.percentage-fill-true {
+  @apply h-full bg-accent transition-all duration-500;
+}
+
+.percentage-fill-false {
+  @apply h-full bg-destructive transition-all duration-500;
 }
