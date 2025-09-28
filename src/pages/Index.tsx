@@ -59,25 +59,50 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      fetchPosts();
-    }
-  }, [user]);
+    // Fetch posts for everyone, whether logged in or not
+    // This is a community platform where posts should be visible to all
+    fetchPosts();
+  }, []);
 
   const fetchPosts = async () => {
     try {
-      const { data: postsData, error } = await supabase
+      // Fetch posts and profiles separately, then combine them
+      const { data: postsData, error: postsError } = await supabase
         .from("posts")
-        .select(`
-          *,
-          profiles (
-            username
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setPosts(postsData || []);
+      if (postsError) throw postsError;
+
+      if (!postsData || postsData.length === 0) {
+        setPosts([]);
+        return;
+      }
+
+      // Get all unique user IDs from posts
+      const userIds = [...new Set(postsData.map(post => post.user_id))];
+
+      // Fetch profiles for all users who have posts
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("user_id, username")
+        .in("user_id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user_id to profile for quick lookup
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.user_id, profile);
+      });
+
+      // Combine posts with profile data
+      const postsWithProfiles = postsData.map(post => ({
+        ...post,
+        profiles: profilesMap.get(post.user_id) || { username: 'Unknown User' }
+      }));
+
+      setPosts(postsWithProfiles);
     } catch (error) {
       console.error("Error fetching posts:", error);
       toast({
