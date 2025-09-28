@@ -177,6 +177,12 @@ export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) =>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="font-semibold">{post.profiles.username}</span>
+              {/* Ambiguous indicator when votes are close */}
+              {totalVotes > 0 && truePercentage >= 45 && truePercentage <= 55 && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-warning text-warning-foreground">
+                  ambiguous
+                </span>
+              )}
               <span className="flex items-center text-sm text-muted-foreground">
                 <Clock className="h-3 w-3 mr-1" />
                 {formatTimeAgo(post.created_at)}
