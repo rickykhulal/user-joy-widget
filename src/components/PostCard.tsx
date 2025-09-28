@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, X, Clock, Trash2 } from "lucide-react";
+import { Check, X, Clock, Trash2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CommentSection } from "./CommentSection";
@@ -177,11 +177,25 @@ export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) =>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="font-semibold">{post.profiles.username}</span>
-              {/* Ambiguous indicator when votes are close */}
-              {totalVotes > 0 && truePercentage >= 45 && truePercentage <= 55 && (
-                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-warning text-warning-foreground">
-                  ambiguous
-                </span>
+              {/* Vote indicators */}
+              {totalVotes > 0 && (
+                <>
+                  {truePercentage > 55 && (
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-success text-success-foreground">
+                      true
+                    </span>
+                  )}
+                  {truePercentage < 45 && (
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground">
+                      fake
+                    </span>
+                  )}
+                  {truePercentage >= 45 && truePercentage <= 55 && (
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-warning text-warning-foreground">
+                      ambiguous
+                    </span>
+                  )}
+                </>
               )}
               <span className="flex items-center text-sm text-muted-foreground">
                 <Clock className="h-3 w-3 mr-1" />
@@ -285,6 +299,21 @@ export const PostCard = ({ post, currentUser, onPostDeleted }: PostCardProps) =>
             <X className="h-4 w-4 mr-1" />
             Fake ({falseVotes})
           </button>
+
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => {
+              toast({
+                title: "AI Insight",
+                description: "AI analysis feature coming soon!",
+              });
+            }}
+          >
+            <Sparkles className="h-3 w-3 mr-1" />
+            AI Insight
+          </Button>
         </div>
 
         {userVote && (
